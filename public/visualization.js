@@ -94,7 +94,9 @@ canvas.addEventListener("click", function(event) {
 });
 
 // Connect to WebSocket server
-const ws = new WebSocket("ws://localhost:8000/leaderboard");
+// const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+const wsHost = window.location.host;  // includes hostname + port
+const ws = new WebSocket(`ws://${wsHost}/leaderboard`);
 
 ws.onmessage = (event) => {
     let json = JSON.parse(event.data);
