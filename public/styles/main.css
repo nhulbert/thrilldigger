@@ -1,0 +1,25 @@
+#container {
+    display: flex;
+    flex-direction: row;
+    gap: 20px; /* Optional: adds spacing between canvas and table */
+    align-items: flex-start; /* Aligns tops */
+}
+#underCanvas {
+    display: flex;
+    flex-direction: row;
+    gap: 20px; /* Optional: adds spacing between canvas and table */
+    align-items: flex-start; /* Aligns tops */
+}
+#editordiv {
+    height: 100%;
+    width: 100%;
+    border: 1px solid #ccc;
+    font-size: 14px;
+  }
+#editor {
+    height: 85vh;
+    width: 100%;
+    border: 1px solid #ccc;
+    font-size: 14px;
+  }
+

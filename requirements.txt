@@ -1,0 +1,5 @@
+aiohttp==3.12.14
+cffi==1.17.1
+numpy==2.3.1
+tinydb==4.8.2
+websockets==15.0.1

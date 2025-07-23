@@ -1,0 +1,12 @@
+version: "3.8"
+
+services:
+  thrilldigger:
+    build: .
+    container_name: thrilldigger-server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./db:/app/db
+    working_dir: /app
+    command: bash -c "source /emsdk/emsdk_env.sh && python server.py"

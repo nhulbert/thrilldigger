@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<link rel="stylesheet" href="styles/main.css">
+<head>
+    <meta charset="UTF-8">
+    <title>TensorFlow Agents Visualization</title>
+</head>
+<body>
+    <div id="container">
+        <div>
+            <canvas id="canvas"></canvas>
+            <div id="underCanvas">
+                <input type="file" id="fileInput" style="display: none;" multiple />
+                <button onclick="document.getElementById('fileInput').click();">
+                Upload file(s)
+                </button>
+                <div id="rewardDisp"></div>
+                <div id="fileList"></div>
+            </div>
+        </div>
+        <table id="leaderboard">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be injected here -->
+            </tbody>
+        </table>
+        <div id="editordiv">
+            <div id="editor">function determineAction(state, qvals) {
+    const WIDTH = 8;
+    const HEIGHT = 5;
+    
+    // let cellVal = state[cellRow * WIDTH + cellCol];
+    
+    let allowedActions = [];
+    
+    for (var i = 0; i < state.length; i++) {
+        if (state[i] === -1) allowedActions.push(i);
+    }
+    
+    // optionally set q-values
+    qvals.fill(0);
+    allowedActions.forEach(allowedAction => qvals[allowedAction] = Math.random() + 0.1);
+    
+    let action = allowedActions[Math.floor(Math.random() * allowedActions.length)];
+    
+    return action;
+}
+
+
+// Example to load a WASM agent (built to a js + WASM, requires malloc and free to be exported)
+/* (() => {
+    // Only run when the function loads
+    const script = document.createElement("script");
+    script.id = "agentScript";
+    let agentFile = window.uploadedFiles.find(file => file.name === "agent.js");
+    script.src = URL.createObjectURL(agentFile);
+    document.body.appendChild(script);
+
+    // The function called to determine each action
+    return (state, qvals) => {
+    // Allocate memory
+    const memory = Module.wasmMemory.buffer;
+    const statePtr = Module._malloc(state.length * Int32Array.BYTES_PER_ELEMENT);  // Allocate space in WASM memory
+    const qValsPtr = Module._malloc(qvals.length * Float32Array.BYTES_PER_ELEMENT);
+    const stateArray = new Int32Array(memory, statePtr, state.length);  // Create a JS view into WASM memory
+    const qValsArray = new Float32Array(memory, qValsPtr, qvals.length);
+
+    stateArray.set(state);
+
+    // Call the WASM function
+    let action = Module._getAction(statePtr, qValsPtr);
+
+    // Optionally set q-values
+    for (var i = 0; i < qvals.length; i++) {
+        qvals[i] = qValsArray[i];
+    }
+
+    // Free memory
+    Module._free(statePtr);
+    Module._free(qValsPtr);
+    return action;
+}
+})() */
+</div>
+            <button id="loadCode">Load code</button> 
+            <button id="stepBtn">Forward Step</button>
+            <button id="reset">Reset reward</button>
+            <button id="scoreAgent">Evaluate Agent</button>
+            <button id="uploadScore">Upload Score</button>
+        </div>
+    </div>
+    <pre id="output"></pre>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.43.2/ace.js" integrity="sha512-ZIa+FlPaGDSM+lTl9JaxnQvcfma7ETsOHd9Thbhp5u4RX1uYiDNW7XvUrXv4dJSPetXbiTzWilHEkSg4YpmltQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.43.2/ext-language_tools.min.js" integrity="sha512-EQ+HEoGjbA0ClgWGeEtDNxBMlVya9eI6T8o+iLLj0iSyBMvACBzpTe22RAG2tQRuLhEQdm4OsRd1t52jUN8kgA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script type="module" src="visualization.js"></script>
+</html>
