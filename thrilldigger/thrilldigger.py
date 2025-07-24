@@ -4,8 +4,6 @@ import subprocess
 import cffi
 import random
 
-from environment import Environment
-
 
 C_FILE = "thrilldigger/thrilldigger.c"
 C_FUNCTION = "compute_env_state"
@@ -13,7 +11,7 @@ C_FUNCTION = "compute_env_state"
 PUBLIC_DIR = "public"
 AGENT_BUILD_DIR = "thrilldigger/build"
 
-class ThrilldiggerEnv(Environment):
+class ThrilldiggerEnv:
 
     def __init__(self):
         self.thrilldigger_lib, self.ffi = self.compile_cffi()
