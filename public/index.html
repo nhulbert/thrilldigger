@@ -54,8 +54,18 @@
 
 
 // Example to load a WASM agent (built to a js + WASM, requires malloc and free to be exported)
-/* (() => {
+/*(() => {
     // Only run when the function loads
+    let wasmFile = window.uploadedFiles.find(file => file.name === "agent.wasm");
+    let wasmURL = URL.createObjectURL(wasmFile);
+    
+    window.Module = {
+      locateFile: function(path, prefix) {
+        if (path.endsWith(".wasm")) return wasmURL;
+        return prefix + path;
+      }
+    };
+    
     const script = document.createElement("script");
     script.id = "agentScript";
     let agentFile = window.uploadedFiles.find(file => file.name === "agent.js");
@@ -86,7 +96,7 @@
     Module._free(qValsPtr);
     return action;
 }
-})() */
+})()*/
 </div>
             <button id="loadCode">Load code</button> 
             <button id="stepBtn">Forward Step</button>
