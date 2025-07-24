@@ -103,7 +103,11 @@ ws.onmessage = (event) => {
         let leaderboard = json["leaderboard"];
         updateLeaderboard(leaderboard);
     } else if (json["type"] === "scoreAck") {
-        alert("Score successfully sent");
+        if (json["successful"]) {
+            alert("Score successfully sent");
+        } else {
+            alert("Problem sending score")
+        }
     }
 };
 

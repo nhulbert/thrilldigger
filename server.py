@@ -119,7 +119,10 @@ async def websocket_handler(request):
             try:
                 data = json.loads(msg.data)
                 name = data.get("name")
-                score = data.get("score")
+                score = int(data.get("score"))
+
+                if name is None or name.strip() == '':
+                    raise ValueError("No name")
 
                 print(f"Inserting score from {name}: {score}")
                 db.insert({'name': name, 'score': score})
