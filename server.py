@@ -19,13 +19,6 @@ PUBLIC_DIR = 'public'
 
 LEADERBOARD_PATH = 'leaderboard'
 
-
-# Compilation Commands
-ffi = None
-cartpole_lib = None
-trainer = None
-model = None
-
 db = TinyDB('db/leaderboard.json')
 
 
@@ -84,7 +77,6 @@ def getleaderboard():
 
 async def send_leaderboard(ws):
     client_id = id(ws)
-    global model
     try:
         while True:
             leaderboard = getleaderboard()
