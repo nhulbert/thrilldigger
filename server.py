@@ -2,12 +2,14 @@ import asyncio
 from aiohttp import web
 import random
 import json
+import ssl
+import os
 from tinydb import TinyDB, Query
 
 from thrilldigger.thrilldigger import ThrilldiggerEnv
 
 # Port configurations
-HTTP_PORT = 8000
+HTTPS_PORT = 443
 
 # Paths
 PUBLIC_DIR = 'public'
@@ -27,13 +29,18 @@ db = TinyDB('db/leaderboard.json')
 async def index(request):
     return web.FileResponse('public/index.html')
 
+async def health_check(request):
+    return web.Response(text="OK", status=200)
 
 def run_servers():
     app = web.Application()
     app.router.add_get('/', index)
     app.router.add_static('/', path=PUBLIC_DIR, name='static')
     app.router.add_get('/' + LEADERBOARD_PATH, websocket_handler)
-    web.run_app(app, port=HTTP_PORT)
+    app.router.add_get('/health', health_check)
+    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_context.load_cert_chain(os.getenv("CERT_PATH"), os.getenv("KEY_PATH"))
+    web.run_app(app, port=HTTPS_PORT, ssl_context=ssl_context)
 
 
 def getleaderboard():
