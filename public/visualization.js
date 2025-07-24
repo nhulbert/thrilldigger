@@ -24,7 +24,7 @@ editor.setOptions({
 });
 
 const ctx = canvas.getContext('2d');
-const targetSteps = 100;
+const targetSteps = 10000;
 const uploadedFiles = [];
 window.uploadedFiles = uploadedFiles;
 let envWasm = null;
