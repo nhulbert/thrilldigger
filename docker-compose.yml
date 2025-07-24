@@ -8,6 +8,7 @@ services:
       - "443:443"
     volumes:
       - ./db:/app/db
+      - ./auth:/app/auth
       - /etc/letsencrypt:/certs:ro
     working_dir: /app
     command: bash -c "source /emsdk/emsdk_env.sh && python server.py"

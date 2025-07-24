@@ -1,9 +1,12 @@
 import asyncio
 from aiohttp import web
+import bcrypt
 import random
 import json
 import ssl
 import os
+import base64
+
 from tinydb import TinyDB, Query
 
 from thrilldigger.thrilldigger import ThrilldiggerEnv
@@ -26,14 +29,44 @@ model = None
 db = TinyDB('db/leaderboard.json')
 
 
+def parse_basic_auth(header):
+    if not header or not header.startswith("Basic "):
+        return None
+    try:
+        b64 = header.split(" ", 1)[1]
+        decoded = base64.b64decode(b64).decode("utf-8")
+        username, password = decoded.split(":", 1)
+        return {"username": username, "password": password}
+    except Exception:
+        return None
+
+with open("auth/auth_users.json") as f:
+    USER_HASHES = json.load(f)
+
+
+@web.middleware
+async def basic_auth_middleware(request, handler):
+    creds = parse_basic_auth(request.headers.get("Authorization"))
+    if not creds:
+        return web.Response(status=401, headers={"WWW-Authenticate": "Basic realm=\"Thrilldigger\""})
+    username, password = creds.get("username"), creds.get("password")
+    hashed = USER_HASHES.get(username)
+    if not hashed or not bcrypt.checkpw(password.encode(), hashed.encode()):
+        return web.Response(status=403)
+
+    return await handler(request)
+
+
 async def index(request):
     return web.FileResponse('public/index.html')
+
 
 async def health_check(request):
     return web.Response(text="OK", status=200)
 
+
 def run_servers():
-    app = web.Application()
+    app = web.Application(middlewares=[basic_auth_middleware])
     app.router.add_get('/', index)
     app.router.add_static('/', path=PUBLIC_DIR, name='static')
     app.router.add_get('/' + LEADERBOARD_PATH, websocket_handler)
@@ -64,6 +97,15 @@ async def send_leaderboard(ws):
 
 
 async def websocket_handler(request):
+    auth_header = request.headers.get("Authorization")
+    creds = parse_basic_auth(auth_header)
+
+    if not creds or creds.get("username") not in USER_HASHES:
+        return web.Response(status=401)
+
+    if not bcrypt.checkpw(creds.get("password").encode(), USER_HASHES[creds.get("username")].encode()):
+        return web.Response(status=403)
+
     ws = web.WebSocketResponse()
     await ws.prepare(request)
 
