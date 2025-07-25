@@ -97,14 +97,11 @@ function resizeCanvasToDisplaySize(canvas) {
 canvas.addEventListener("click", function(event) {
     const rect = canvas.getBoundingClientRect();
 
-    const cellWidth = canvas.width / width;
-    const cellHeight = canvas.height / height;
+    const cellWidth = rect.width / width;
+    const cellHeight = rect.height / height;
 
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    const x = (event.clientX - rect.left) * scaleX;
-    const y = (event.clientY - rect.top) * scaleY;
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
 
     const col = Math.floor(x / cellWidth);
     const row = Math.floor(y / cellHeight);
