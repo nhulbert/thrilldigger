@@ -187,8 +187,10 @@ function updateCanvas(state, hiddenState, qvals) {
     }
 
     let range = maxQVal - minQVal;
-    let cellWidth = canvas.width / width;
-    let cellHeight = canvas.height / height;
+    let displayWidth = canvas.getBoundingClientRect().width;
+    let displayHeight = canvas.getBoundingClientRect().height;
+    let cellWidth = displayWidth / width;
+    let cellHeight = displayHeight / height;
     for (let r = 0; r < height; r++) {
         for (let c = 0; c < width; c++) {
             let ind = r * width + c;
