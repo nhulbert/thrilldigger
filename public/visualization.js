@@ -51,8 +51,14 @@ window.onload = function() {
     loadWasms();
     loadCode();
     determineActionFn(state, qvals); // populate initial q-values
+    resizeCanvasToDisplaySize(canvas);
     updateCanvas(state, hiddenState, qvals);
 }
+window.addEventListener('resize', () => {
+    resizeCanvasToDisplaySize(canvas);
+    updateCanvas(state, hiddenState, qvals);
+});
+
 
 document.getElementById("stepBtn").addEventListener("click", stepEnv);
 document.getElementById("reset").addEventListener("click", resetReward);
@@ -72,6 +78,20 @@ fileInput.addEventListener('change', (event) => {
         fileList.appendChild(item);
     }
 });
+
+function resizeCanvasToDisplaySize(canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const scale = window.devicePixelRatio || 1;
+
+    // Round up to avoid fractional pixels
+    canvas.width = Math.floor(rect.width * scale);
+    canvas.height = Math.floor(rect.height * scale);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale); // Scale drawing operations
+
+    // Redraw everything here if necessary
+}
 
 
 canvas.addEventListener("click", function(event) {
