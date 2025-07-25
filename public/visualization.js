@@ -323,7 +323,7 @@ function updateState(state, hiddenState, qvals, actionOverride) {
     // Call the WASM function
 
     // let isDone = exports.compute_env_state(statePtr, Math.floor(Math.random() * 2));
-    let action = actionOverride ? actionOverride : determineActionFn(state, qvals);
+    let action = (actionOverride === 0 || actionOverride) ? actionOverride : determineActionFn(state, qvals);
     exports.compute_env_state(hiddenStatePtr, statePtr, action, nextHiddenStatePtr,
         nextStatePtr, donePtr, rewardPtr, durationPtr);
 
