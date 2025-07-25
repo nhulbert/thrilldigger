@@ -54,9 +54,6 @@ window.onload = function() {
     updateCanvas(state, hiddenState, qvals);
 }
 
-canvas.width = 600;
-canvas.height = 400;
-
 document.getElementById("stepBtn").addEventListener("click", stepEnv);
 document.getElementById("reset").addEventListener("click", resetReward);
 document.getElementById("loadCode").addEventListener("click", loadCode);
@@ -83,8 +80,11 @@ canvas.addEventListener("click", function(event) {
     const cellWidth = canvas.width / width;
     const cellHeight = canvas.height / height;
 
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
     const col = Math.floor(x / cellWidth);
     const row = Math.floor(y / cellHeight);
