@@ -12,7 +12,6 @@
       <canvas id="canvas"></canvas>
       <div class="controls">
         <input type="file" id="fileInput" hidden multiple />
-        <button onclick="document.getElementById('fileInput').click()">Upload File(s)</button>
         <div id="rewardDisp"></div>
         <div id="fileList"></div>
       </div>
@@ -97,6 +96,7 @@
 </div>
       <div class="editor-controls">
         <button id="loadCode">Load Code</button>
+        <button onclick="document.getElementById('fileInput').click()">Upload File(s)</button>
         <button id="stepBtn">Forward Step</button>
         <button id="reset">Reset Reward</button>
         <button id="scoreAgent">Evaluate Agent</button>
