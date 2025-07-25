@@ -25,8 +25,20 @@ body, html {
   }
 }
 
+@media screen and (max-width: 600px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "canvas"
+      "leaderboard"
+      "editor";
+  }
+}
+
 .canvas-panel {
   grid-area: canvas;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .canvas-panel canvas {
@@ -34,6 +46,7 @@ body, html {
   max-width: 800px;
   height: auto;
   border: 1px solid #ccc;
+  display: block;
 }
 
 .controls {
