@@ -6,6 +6,7 @@ import json
 import ssl
 import os
 import base64
+import argparse
 
 from tinydb import TinyDB, Query
 
@@ -18,8 +19,10 @@ HTTPS_PORT = 443
 PUBLIC_DIR = 'public'
 
 LEADERBOARD_PATH = 'leaderboard'
+USER_HASHES = dict() 
 
 db = TinyDB('db/leaderboard.json')
+use_auth = True
 
 
 def parse_basic_auth(header):
@@ -33,8 +36,6 @@ def parse_basic_auth(header):
     except Exception:
         return None
 
-with open("auth/auth_users.json") as f:
-    USER_HASHES = json.load(f)
 
 
 @web.middleware
@@ -58,15 +59,25 @@ async def health_check(request):
     return web.Response(text="OK", status=200)
 
 
-def run_servers():
-    app = web.Application(middlewares=[basic_auth_middleware])
+def run_servers(port, use_ssl):
+    global USER_HASHES
+
+    if use_auth:
+        with open("auth/auth_users.json") as f:
+            USER_HASHES = json.load(f)
+        app = web.Application(middlewares=[basic_auth_middleware])
+    else:
+        app = web.Application()
     app.router.add_get('/', index)
     app.router.add_static('/', path=PUBLIC_DIR, name='static')
     app.router.add_get('/' + LEADERBOARD_PATH, websocket_handler)
     app.router.add_get('/health', health_check)
-    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    ssl_context.load_cert_chain(os.getenv("CERT_PATH"), os.getenv("KEY_PATH"))
-    web.run_app(app, port=HTTPS_PORT, ssl_context=ssl_context)
+    if use_ssl:
+        ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        ssl_context.load_cert_chain(os.getenv("CERT_PATH"), os.getenv("KEY_PATH"))
+    else:
+        ssl_context = None
+    web.run_app(app, port=port, ssl_context=ssl_context)
 
 
 def getleaderboard():
@@ -89,14 +100,15 @@ async def send_leaderboard(ws):
 
 
 async def websocket_handler(request):
-    auth_header = request.headers.get("Authorization")
-    creds = parse_basic_auth(auth_header)
+    if use_auth:
+        auth_header = request.headers.get("Authorization")
+        creds = parse_basic_auth(auth_header)
 
-    if not creds or creds.get("username") not in USER_HASHES:
-        return web.Response(status=401)
+        if not creds or creds.get("username") not in USER_HASHES:
+            return web.Response(status=401)
 
-    if not bcrypt.checkpw(creds.get("password").encode(), USER_HASHES[creds.get("username")].encode()):
-        return web.Response(status=403)
+        if not bcrypt.checkpw(creds.get("password").encode(), USER_HASHES[creds.get("username")].encode()):
+            return web.Response(status=403)
 
     ws = web.WebSocketResponse()
     await ws.prepare(request)
@@ -134,6 +146,20 @@ async def websocket_handler(request):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Thrilldigger Server")
+    parser.add_argument('--local', action='store_true', help='Run server in local mode')
+
+    args = parser.parse_args()
+
     ThrilldiggerEnv()
-    run_servers()
+    if args.local:
+        print("Running in local mode — no SSL")
+        # Start server on port 80 without SSL
+        use_auth = False
+        run_servers(port=80, use_ssl=False)
+    else:
+        print("Running in production mode — with SSL")
+        # Load cert paths from environment
+        use_auth = True
+        run_servers(port=443, use_ssl=True)
 
