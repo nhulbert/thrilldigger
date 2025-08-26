@@ -353,10 +353,7 @@ function updateState(state, hiddenState, qvals, actionOverride) {
             nextStateArray[i] = -1;
         }
     }
-    else {
-        // update the qvals to those after the action is taken to render
-        determineActionFn(nextStateArray, qvals);
-    }
+    determineActionFn(nextStateArray, qvals);
 
     lastReward = Math.floor(500 * rewardArray[0] + 0.5);
     reward += lastReward;
