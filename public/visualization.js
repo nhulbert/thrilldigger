@@ -34,8 +34,10 @@ let height = 5;
 let numBombs = 8;
 let numRupoors = 8;
 let state = Array.from({ length: width * height }, _ => -1);
+
 let hiddenState = Array.from({ length: width * height }, _ => -1);
 initializeHiddenState(hiddenState);
+
 let qvals = Array.from({ length: width * height }, _ => -1.0);
 let actionOverride = null;
 let keyarr = [false, false];
@@ -65,6 +67,9 @@ document.getElementById("reset").addEventListener("click", resetReward);
 document.getElementById("loadCode").addEventListener("click", loadCode);
 document.getElementById("scoreAgent").addEventListener("click", runAgentEvaluation);
 document.getElementById("uploadScore").addEventListener("click", uploadAgentScore);
+document.getElementById("requestAction").addEventListener("click", requestAgentButtonHandler);
+document.getElementById("requestQvals").addEventListener("click", requestQvalsButtonHandler);
+
 fileInput.addEventListener('change', (event) => {
     const newFiles = Array.from(event.target.files);
 
@@ -114,6 +119,8 @@ canvas.addEventListener("click", function(event) {
 const wsHost = window.location.host;  // includes hostname + port
 const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 const ws = new WebSocket(`${protocol}://${wsHost}/leaderboard`);
+const wsAgent = new WebSocket(`${protocol}://${wsHost}/agent`);
+const wsQvals = new WebSocket(`${protocol}://${wsHost}/qvals`);
 
 ws.onmessage = (event) => {
     let json = JSON.parse(event.data);
@@ -128,6 +135,37 @@ ws.onmessage = (event) => {
         }
     }
 };
+
+wsAgent.onmessage = (event) => {
+    let json = JSON.parse(event.data);
+    let serverState = json["state"];
+    let agentName = json["agent"];
+    let action = json["action"];
+    if (areStatesEqual(serverState, state)) {
+        updateEnvironmentServer(action, agentName);
+    }
+    else {
+        console.log("Invalid state received from server receiving action");
+    }
+};
+
+wsQvals.onmessage = (event) => {
+    let json = JSON.parse(event.data);
+    let serverState = json["state"];
+    let agentName = json["agent"];
+    let qvals = json["qvals"];
+    if (areStatesEqual(serverState, state)) {
+        updateQvalsServer(qvals, agentName);
+    }
+    else {
+        console.log("Invalid state received from server receiving qvals");
+    }
+};
+
+function areStatesEqual(a, b) {
+    if (a.length !== b.length) return false;
+    return a.every((val, i) => val === b[i]);
+}
 
 function updateLeaderboard(data) {
     const table = document.getElementById("leaderboard");
@@ -257,6 +295,15 @@ function updateEnvironmentLocal(action) {
     updateSummaryText();
 }
 
+function updateEnvironmentServer(action, agentName) {
+    updateStateServer(state, hiddenState, action);
+    requestAgentQvals(state, agentName);
+}
+
+function updateQvalsServer(qvals, agentName) {
+    updateCanvas(state, hiddenState, qvals);
+    updateSummaryText();
+}
 
 function countNearby(arr, r, c) {
     let count = 0;
@@ -318,7 +365,6 @@ function initializeHiddenState(hiddenState) {
 
 
 function updateState(state, hiddenState, qvals, actionOverride) {
-    // Allocate memory
     const exports = envWasm.instance.exports;
     const memory = exports.memory.buffer;
     const statePtr = exports.malloc(width * height * Int32Array.BYTES_PER_ELEMENT);  // Allocate space in WASM memory
@@ -335,14 +381,12 @@ function updateState(state, hiddenState, qvals, actionOverride) {
     const doneArray = new Int32Array(memory, donePtr, 1);
     const rewardArray = new Float32Array(memory, rewardPtr, 1);
 
-
     // Set arbitrary float values
     stateArray.set(state);
     hiddenStateArray.set(hiddenState);
 
     // Call the WASM function
 
-    // let isDone = exports.compute_env_state(statePtr, Math.floor(Math.random() * 2));
     let action = (actionOverride === 0 || actionOverride) ? actionOverride : determineActionFn(state, qvals);
     exports.compute_env_state(hiddenStatePtr, statePtr, action, nextHiddenStatePtr,
         nextStatePtr, donePtr, rewardPtr, durationPtr);
@@ -372,6 +416,56 @@ function updateState(state, hiddenState, qvals, actionOverride) {
     exports.free(rewardPtr);
     exports.free(durationPtr);
 }
+
+function updateStateServer(state, hiddenState, action) {
+    const exports = envWasm.instance.exports;
+    const memory = exports.memory.buffer;
+    const statePtr = exports.malloc(width * height * Int32Array.BYTES_PER_ELEMENT);  // Allocate space in WASM memory
+    const hiddenStatePtr = exports.malloc(width * height * Int32Array.BYTES_PER_ELEMENT);  // Allocate space in WASM memory
+    const nextStatePtr = exports.malloc(width * height * Int32Array.BYTES_PER_ELEMENT);
+    const nextHiddenStatePtr = exports.malloc(width * height * Int32Array.BYTES_PER_ELEMENT);
+    const donePtr = exports.malloc(1 * Int32Array.BYTES_PER_ELEMENT);
+    const rewardPtr = exports.malloc(1 * Float32Array.BYTES_PER_ELEMENT);
+    const durationPtr = exports.malloc(1 * Float32Array.BYTES_PER_ELEMENT);
+    const stateArray = new Int32Array(memory, statePtr, width * height);  // Create a JS view into WASM memory
+    const hiddenStateArray = new Int32Array(memory, hiddenStatePtr, width * height);  // Create a JS view into WASM memory
+    const nextStateArray = new Int32Array(memory, nextStatePtr, width * height);  // Create a JS view into WASM memory
+    const nextHiddenStateArray = new Int32Array(memory, nextHiddenStatePtr, width * height);  // Create a JS view into WASM memory
+    const doneArray = new Int32Array(memory, donePtr, 1);
+    const rewardArray = new Float32Array(memory, rewardPtr, 1);
+
+    stateArray.set(state);
+    hiddenStateArray.set(hiddenState);
+
+    // Call the WASM function
+    exports.compute_env_state(hiddenStatePtr, statePtr, action, nextHiddenStatePtr,
+        nextStatePtr, donePtr, rewardPtr, durationPtr);
+
+    if (doneArray[0]) {
+        initializeHiddenState(nextHiddenStateArray);
+        for (let i = 0; i < nextStateArray.length; i++) {
+            nextStateArray[i] = -1;
+        }
+    }
+
+    lastReward = Math.floor(500 * rewardArray[0] + 0.5);
+    reward += lastReward;
+
+    for (let i = 0; i < stateArray.length; i++) {
+        state[i] = nextStateArray[i];
+        hiddenState[i] = nextHiddenStateArray[i];
+    }
+
+    // Free memory
+    exports.free(statePtr);
+    exports.free(hiddenStatePtr);
+    exports.free(nextStatePtr);
+    exports.free(nextHiddenStatePtr);
+    exports.free(donePtr);
+    exports.free(rewardPtr);
+    exports.free(durationPtr);
+}
+
 
 async function loadWasms() {
     loadEnvWasm();
@@ -472,3 +566,33 @@ function sendAgentScore(name, score) {
     ws.send(JSON.stringify(scoreData));
 }
 
+function requestAgentButtonHandler() {
+    const selectedValue = document.getElementById("agentList").value;
+    requestAgentAction(state, selectedValue);
+}
+
+function requestQvalsButtonHandler() {
+    const selectedValue = document.getElementById("agentList").value;
+    requestAgentQvals(state, selectedValue);
+}
+
+
+function requestAgentAction(state, agentName) {
+    console.log("Requesting agent action");
+    const agentStateData = {
+        agent: agentName,
+        state: state
+    }
+
+    wsAgent.send(JSON.stringify(agentStateData));
+}
+
+function requestAgentQvals(state, agentName) {
+    console.log("Requesting agent qvals");
+    const agentStateData = {
+        agent: agentName,
+        state: state
+    }
+
+    wsQvals.send(JSON.stringify(agentStateData));
+}

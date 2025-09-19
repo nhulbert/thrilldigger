@@ -20,8 +20,16 @@
         <button onclick="document.getElementById('fileInput').click()">Upload File(s)</button>
         <button id="stepBtn">Forward Step</button>
         <button id="reset">Reset Reward</button>
-        <button id="scoreAgent">Evaluate Agent</button>
+        <button id="scoreAgent">Evaluate Local Agent</button>
         <button id="uploadScore">Upload Score</button>
+      </div>
+      <div class="editor-controls2">
+        <button id="requestAction">Request Agent Action</button>
+        <button id="requestQvals">Request Agent Evaluation</button>
+        <select id="agentList">
+          <option value="PPOAgent">PPO ConvNet Agent</option>
+          <option value="DistAgent">Greedy Expected Agent</option>
+        </select>
       </div>
     </section>
 

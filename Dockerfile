@@ -19,6 +19,7 @@ RUN git clone https://github.com/emscripten-core/emsdk.git /emsdk && \
 # Copy your application code and static files
 COPY ./*.py ./
 COPY ./thrilldigger/* ./thrilldigger/
+COPY ./agent/* ./agent/
 COPY ./public ./public
 COPY ./requirements.txt ./requirements.txt
 

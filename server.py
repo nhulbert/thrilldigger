@@ -11,6 +11,8 @@ import argparse
 from tinydb import TinyDB, Query
 
 from thrilldigger.thrilldigger import ThrilldiggerEnv
+from agent.distagent import DistAgent
+from agent.ppoagent import PPOAgent
 
 # Port configurations
 HTTPS_PORT = 443
@@ -19,11 +21,13 @@ HTTPS_PORT = 443
 PUBLIC_DIR = 'public'
 
 LEADERBOARD_PATH = 'leaderboard'
+AGENT_PATH = 'agent'
+QVALS_PATH = 'qvals'
 USER_HASHES = dict() 
+AGENT_LIST = dict()
 
 db = TinyDB('db/leaderboard.json')
 use_auth = True
-
 
 def parse_basic_auth(header):
     if not header or not header.startswith("Basic "):
@@ -61,6 +65,8 @@ async def health_check(request):
 
 def run_servers(port, use_ssl):
     global USER_HASHES
+    global AGENT_LIST
+
 
     if use_auth:
         with open("auth/auth_users.json") as f:
@@ -68,9 +74,15 @@ def run_servers(port, use_ssl):
         app = web.Application(middlewares=[basic_auth_middleware])
     else:
         app = web.Application()
+
+    for agent in [DistAgent(), PPOAgent()]:
+        AGENT_LIST[agent.name] = agent
+
     app.router.add_get('/', index)
     app.router.add_static('/', path=PUBLIC_DIR, name='static')
     app.router.add_get('/' + LEADERBOARD_PATH, websocket_handler)
+    app.router.add_get('/' + AGENT_PATH, websocket_handler)
+    app.router.add_get('/' + QVALS_PATH, websocket_handler)
     app.router.add_get('/health', health_check)
     if use_ssl:
         ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -116,7 +128,78 @@ async def websocket_handler(request):
     print("WebSocket connection established:", request.path)
 
     if request.path == "/" + LEADERBOARD_PATH:
-        asyncio.create_task(send_leaderboard(ws))
+        await leaderboard_handler(ws)
+    elif request.path == "/" + AGENT_PATH:
+        await agent_handler(ws)
+    elif request.path == "/" + QVALS_PATH:
+        await qvals_handler(ws)
+
+
+    print("WebSocket connection closed.")
+    return ws
+
+
+async def agent_handler(ws):
+    async for msg in ws:
+        if msg.type == web.WSMsgType.TEXT:
+            try:
+                data = json.loads(msg.data)
+                state = data.get("state")
+                agentName = data.get("agent")
+
+                if agentName is None or agentName.strip() == '':
+                    raise ValueError("No agent name")
+
+                agent = AGENT_LIST.get(agentName)
+                if not agent:
+                    raise ValueError("No agent with given name")
+                if not is_array(state):
+                    raise ValueError("")
+
+                action = agent.determine_action(state)
+                data = {"state": state, "agent": agentName, "action": action}
+                await ws.send_str(json.dumps(data))
+
+            except Exception as e:
+                print("Error determining action:", e)
+                data = {"state": None, "action": None}
+                await ws.send_str(json.dumps(data))
+        elif msg.type == web.WSMsgType.ERROR:
+            print("WebSocket connection closed with exception:", ws.exception())
+
+
+async def qvals_handler(ws):
+    async for msg in ws:
+        if msg.type == web.WSMsgType.TEXT:
+            try:
+                data = json.loads(msg.data)
+                state = data.get("state")
+                agentName = data.get("agent")
+
+                if agentName is None or agentName.strip() == '':
+                    raise ValueError("No agent name")
+
+                agent = AGENT_LIST.get(agentName)
+                if not agent:
+                    raise ValueError("No agent with given name")
+                if not is_array(state):
+                    raise ValueError("")
+
+                qvals = agent.get_qvals(state)
+                data = {"state": state, "agent": agentName, "qvals": qvals}
+                await ws.send_str(json.dumps(data))
+
+            except Exception as e:
+                print("Error determining qvals:", e)
+                data = {"state": None, "agent": None, "qvals": None}
+                await ws.send_str(json.dumps(data))
+        elif msg.type == web.WSMsgType.ERROR:
+            print("WebSocket connection closed with exception:", ws.exception())
+
+
+
+async def leaderboard_handler(ws):
+    asyncio.create_task(send_leaderboard(ws))
 
     async for msg in ws:
         if msg.type == web.WSMsgType.TEXT:
@@ -141,9 +224,8 @@ async def websocket_handler(request):
         elif msg.type == web.WSMsgType.ERROR:
             print("WebSocket connection closed with exception:", ws.exception())
 
-    print("WebSocket connection closed.")
-    return ws
-
+def is_array(arr):
+    return isinstance(arr, list)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Thrilldigger Server")
