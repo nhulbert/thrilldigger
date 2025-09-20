@@ -11,8 +11,7 @@ import argparse
 from tinydb import TinyDB, Query
 
 from thrilldigger.thrilldigger import ThrilldiggerEnv
-from agent.distagent import DistAgent
-from agent.ppoagent import PPOAgent
+from agent.nativeagent import NativeAgent
 
 # Port configurations
 HTTPS_PORT = 443
@@ -75,7 +74,7 @@ def run_servers(port, use_ssl):
     else:
         app = web.Application()
 
-    for agent in [DistAgent(), PPOAgent()]:
+    for agent in [NativeAgent("PPOAgent", "agent/libagent.so"), NativeAgent("DistAgent", "agent/libdistagent.so")]:
         AGENT_LIST[agent.name] = agent
 
     app.router.add_get('/', index)
