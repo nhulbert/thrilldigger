@@ -373,6 +373,18 @@ function initializeHiddenState(hiddenState) {
     fillInHiddenState(hiddenState);
 }
 
+function undoHiddenStateMoves(state, hiddenState) {
+    for (let r = 0; r < height; r++) {
+        for (let c = 0; c < width; c++) {
+            let ind = r * width + c;
+            if (state[ind] !== CellType.DUG) {
+                hiddenState[ind] = state[ind];
+                console.log("undoing " + r + ", " + c);
+            }
+        }
+    }
+}
+
 function fillInHiddenState(hiddenState) {
     for (let r = 0; r < height; r++) {
         for (let c = 0; c < width; c++) {
@@ -670,6 +682,7 @@ function showCellDropdown(x, y, cellIndex) {
     menu.addEventListener("change", () => {
         let newVal = parseInt(menu.value);
         if (newVal !== CellType.BOMB || state[cellIndex] === CellType.DUG) {
+            undoHiddenStateMoves(state, hiddenState);
             hiddenState[cellIndex] = newVal;
             fillInHiddenState(hiddenState);
             replayMoves(state, hiddenState);
