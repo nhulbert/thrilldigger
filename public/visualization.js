@@ -118,11 +118,50 @@ canvas.addEventListener("click", function(event) {
 // Connect to WebSocket server
 const wsHost = window.location.host;  // includes hostname + port
 const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-const ws = new WebSocket(`${protocol}://${wsHost}/leaderboard`);
-const wsAgent = new WebSocket(`${protocol}://${wsHost}/agent`);
-const wsQvals = new WebSocket(`${protocol}://${wsHost}/qvals`);
+const ws = createWebSocket(`${protocol}://${wsHost}/leaderboard`, leaderboardHandler, "ws");
+const wsAgent = createWebSocket(`${protocol}://${wsHost}/agent`, agentHandler, "ws");
+const wsQvals = createWebSocket(`${protocol}://${wsHost}/qvals`, qvalsHandler, "ws");
 
-ws.onmessage = (event) => {
+
+function createWebSocket(url, onMessage, label = "ws", retryDelay = 1000) {
+    let socket;
+    let shouldReconnect = true;
+
+    function connect() {
+        socket = new WebSocket(url);
+
+        socket.onopen = () => {
+            console.log(`[${label}] Connected`);
+        };
+
+        socket.onmessage = onMessage;
+
+        socket.onclose = (event) => {
+            console.warn(`[${label}] Disconnected`, event.reason);
+            if (shouldReconnect) {
+                setTimeout(connect, retryDelay);
+                console.log(`[${label}] Reconnecting in ${retryDelay}ms...`);
+            }
+        };
+
+        socket.onerror = (err) => {
+            console.error(`[${label}] Error`, err);
+            socket.close();
+        };
+    }
+
+    connect();
+
+    return {
+        close: () => {
+            shouldReconnect = false;
+            socket.close();
+        },
+        getSocket: () => socket
+    };
+}
+
+function leaderboardHandler(event) {
     let json = JSON.parse(event.data);
     if (json["type"] === "leaderboard") {
         let leaderboard = json["leaderboard"];
@@ -134,9 +173,9 @@ ws.onmessage = (event) => {
             alert("Problem sending score")
         }
     }
-};
+}
 
-wsAgent.onmessage = (event) => {
+function agentHandler(event) {
     let json = JSON.parse(event.data);
     let serverState = json["state"];
     let agentName = json["agent"];
@@ -147,9 +186,9 @@ wsAgent.onmessage = (event) => {
     else {
         console.log("Invalid state received from server receiving action");
     }
-};
+}
 
-wsQvals.onmessage = (event) => {
+function qvalsHandler(event) {
     let json = JSON.parse(event.data);
     let serverState = json["state"];
     let agentName = json["agent"];
@@ -160,7 +199,7 @@ wsQvals.onmessage = (event) => {
     else {
         console.log("Invalid state received from server receiving qvals");
     }
-};
+}
 
 function areStatesEqual(a, b) {
     if (a.length !== b.length) return false;
@@ -563,7 +602,7 @@ function sendAgentScore(name, score) {
         score: score
     };
 
-    ws.send(JSON.stringify(scoreData));
+    ws.getSocket().send(JSON.stringify(scoreData));
 }
 
 function requestAgentButtonHandler() {
@@ -584,7 +623,7 @@ function requestAgentAction(state, agentName) {
         state: state
     }
 
-    wsAgent.send(JSON.stringify(agentStateData));
+    wsAgent.getSocket().send(JSON.stringify(agentStateData));
 }
 
 function requestAgentQvals(state, agentName) {
@@ -594,5 +633,5 @@ function requestAgentQvals(state, agentName) {
         state: state
     }
 
-    wsQvals.send(JSON.stringify(agentStateData));
+    wsQvals.getSocket().send(JSON.stringify(agentStateData));
 }
