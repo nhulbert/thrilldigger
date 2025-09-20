@@ -8,11 +8,14 @@ class PPOAgent:
     def __init__(self):
         self.name = "PPOAgent"
 
-        self.ffi = cffi.FFI()
+        try:
+            self.ffi = cffi.FFI()
 
-        self.ffi.cdef(f"int {C_FUNCTION}(int *state, float *qvals);")
-        self.lib = self.ffi.dlopen(os.path.abspath(CFFI_LIB))
-        print("CFFI compilation complete.")
+            self.ffi.cdef(f"int {C_FUNCTION}(int *state, float *qvals);")
+            self.lib = self.ffi.dlopen(os.path.abspath(CFFI_LIB))
+            print(f"{self.name} CFFI compilation complete.")
+        except:
+            print(f"Unable to load {self.name} agent")
 
 
     def determine_action(self, state):

@@ -69,20 +69,7 @@ document.getElementById("scoreAgent").addEventListener("click", runAgentEvaluati
 document.getElementById("uploadScore").addEventListener("click", uploadAgentScore);
 document.getElementById("requestAction").addEventListener("click", requestAgentButtonHandler);
 document.getElementById("requestQvals").addEventListener("click", requestQvalsButtonHandler);
-
-fileInput.addEventListener('change', (event) => {
-    const newFiles = Array.from(event.target.files);
-
-    // Add new files to the list
-    uploadedFiles.push(...newFiles);
-
-    fileList.innerHTML = "";
-    for (const file of uploadedFiles) {
-        const item = document.createElement('li');
-        item.textContent = file.name + ", " + file.size + ", " + file.type;
-        fileList.appendChild(item);
-    }
-});
+canvas.addEventListener("contextmenu", cellUpdateHandler);
 
 function resizeCanvasToDisplaySize(canvas) {
     const rect = canvas.getBoundingClientRect();
@@ -329,9 +316,11 @@ function updateSummaryText() {
 
 // Draw the CartPole environment
 function updateEnvironmentLocal(action) {
-    updateState(state, hiddenState, qvals, action);
-    updateCanvas(state, hiddenState, qvals);
-    updateSummaryText();
+    if (state[action] == CellType.DUG) {
+        updateState(state, hiddenState, qvals, action);
+        updateCanvas(state, hiddenState, qvals);
+        updateSummaryText();
+    }
 }
 
 function updateEnvironmentServer(action, agentName) {
@@ -381,6 +370,10 @@ function initializeHiddenState(hiddenState) {
         }
     }
 
+    fillInHiddenState(hiddenState);
+}
+
+function fillInHiddenState(hiddenState) {
     for (let r = 0; r < height; r++) {
         for (let c = 0; c < width; c++) {
             let ind = r * width + c;
@@ -402,6 +395,17 @@ function initializeHiddenState(hiddenState) {
     }
 }
 
+function replayMoves(state, hiddenState) {
+    for (let r = 0; r < height; r++) {
+        for (let c = 0; c < width; c++) {
+            let ind = r * width + c;
+            if (state[ind] != CellType.DUG) {
+                state[ind] = hiddenState[ind];
+                hiddenState[ind] = CellType.DUG;
+            }
+        }
+    }
+}
 
 function updateState(state, hiddenState, qvals, actionOverride) {
     const exports = envWasm.instance.exports;
@@ -615,6 +619,86 @@ function requestQvalsButtonHandler() {
     requestAgentQvals(state, selectedValue);
 }
 
+function cellUpdateHandler(e) {
+    e.preventDefault(); // prevent default browser menu
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mouseX = (e.clientX - rect.left) * scaleX;
+    const mouseY = (e.clientY - rect.top) * scaleY;
+
+    const cellX = Math.floor(mouseX / (canvas.width / width));
+    const cellY = Math.floor(mouseY / (canvas.height / height));
+    const cellIndex = cellY * width + cellX;
+
+    showCellDropdown(e.clientX, e.clientY, cellIndex);
+}
+
+function showCellDropdown(x, y, cellIndex) {
+    const menu = document.createElement("select");
+    menu.style.position = "absolute";
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    menu.style.zIndex = 1000;
+
+    const options = [
+        { label: "Empty", value: CellType.DUG },
+        { label: "Bomb", value: CellType.BOMB },
+        { label: "Rupoor", value: CellType.RUPOOR }
+    ];
+
+    options.forEach(({ label, value }) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        menu.appendChild(option);
+    });
+
+    let currentValue = (state[cellIndex] === CellType.DUG) ? hiddenState[cellIndex] : state[cellIndex];
+    if (currentValue > CellType.RUPOOR) currentValue = CellType.DUG;
+    menu.value = currentValue;
+
+    let removed = false;
+    function removeMenu() {
+        if (!removed && document.body.contains(menu)) {
+            removed = true;
+            document.body.removeChild(menu);
+        }
+    }
+
+    menu.addEventListener("change", () => {
+        let newVal = parseInt(menu.value);
+        if (newVal !== CellType.BOMB || state[cellIndex] === CellType.DUG) {
+            hiddenState[cellIndex] = newVal;
+            fillInHiddenState(hiddenState);
+            replayMoves(state, hiddenState);
+            updateCanvas(state, hiddenState, qvals);
+        }
+        removeMenu();
+    });
+
+    document.body.appendChild(menu);
+    menu.focus();
+
+    menu.addEventListener("blur", () => {
+        removeMenu();
+    });
+}
+
+fileInput.addEventListener('change', (event) => {
+    const newFiles = Array.from(event.target.files);
+
+    // Add new files to the list
+    uploadedFiles.push(...newFiles);
+
+    fileList.innerHTML = "";
+    for (const file of uploadedFiles) {
+        const item = document.createElement('li');
+        item.textContent = file.name + ", " + file.size + ", " + file.type;
+        fileList.appendChild(item);
+    }
+});
 
 function requestAgentAction(state, agentName) {
     console.log("Requesting agent action");
