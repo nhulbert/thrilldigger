@@ -316,7 +316,7 @@ function updateSummaryText() {
 
 // Draw the CartPole environment
 function updateEnvironmentLocal(action) {
-    if (state[action] == CellType.DUG) {
+    if (action === null || state[action] == CellType.DUG) {
         updateState(state, hiddenState, qvals, action);
         updateCanvas(state, hiddenState, qvals);
         updateSummaryText();
